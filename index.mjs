@@ -5,6 +5,8 @@ import {
 } from "@aws-sdk/client-s3";
 import sharp from "sharp";
 
+process.env.FONTCONFIG_PATH = "./fonts";
+
 const S3 = new S3Client();
 const DEST_BUCKET = process.env.DEST_BUCKET;
 const THUMBNAIL_WIDTH = 200;
