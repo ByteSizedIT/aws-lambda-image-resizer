@@ -7,7 +7,7 @@ import sharp from "sharp";
 
 const S3 = new S3Client();
 const DEST_BUCKET = process.env.DEST_BUCKET;
-const THUMBNAIL_WIDTH = 200; // px
+const THUMBNAIL_WIDTH = 200;
 const SUPPORTED_FORMATS = {
   jpg: true,
   jpeg: true,
@@ -18,7 +18,7 @@ export const handler = async (event, context) => {
   const { eventTime, s3 } = event.Records[0];
   const srcBucket = s3.bucket.name;
 
-  // Object key may have spaces or unicode non-ASCII characters
+  // Remove spaces or unicode non-ASCII characters from object key
   const srcKey = decodeURIComponent(s3.object.key.replace(/\+/g, " "));
   const ext = srcKey.replace(/^.*\./, "").toLowerCase();
 
@@ -29,7 +29,9 @@ export const handler = async (event, context) => {
     return;
   }
 
-  // Get the image from the source bucket
+  const newKey = srcKey.replace(/\.\w+$/, ".webp");
+
+  // Get uploaded image from source bucket
   try {
     const { Body, ContentType } = await S3.send(
       new GetObjectCommand({
@@ -38,19 +40,22 @@ export const handler = async (event, context) => {
       })
     );
     const image = await Body.transformToByteArray();
-    // resize image
-    const outputBuffer = await sharp(image).resize(THUMBNAIL_WIDTH).toBuffer();
+    // Reformat/resize image
+    const outputBuffer = await sharp(image)
+      .toFormat("webp")
+      .resize(THUMBNAIL_WIDTH)
+      .toBuffer();
 
-    // store new image in the destination bucket
+    // Store new image in destination bucket
     await S3.send(
       new PutObjectCommand({
         Bucket: DEST_BUCKET,
-        Key: srcKey,
+        Key: newKey,
         Body: outputBuffer,
-        ContentType,
+        ContentType: "image/webp",
       })
     );
-    const message = `Successfully resized ${srcBucket}/${srcKey} and uploaded to ${DEST_BUCKET}/${srcKey}`;
+    const message = `Successfully resized ${srcBucket}/${srcKey} and uploaded to ${DEST_BUCKET}/${newKey}`;
     console.log(message);
     return {
       statusCode: 200,
