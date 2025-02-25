@@ -8,7 +8,6 @@ import sharp from "sharp";
 process.env.FONTCONFIG_PATH = "./fonts";
 
 const S3 = new S3Client();
-const DEST_BUCKET = process.env.DEST_BUCKET;
 const THUMBNAIL_WIDTH = 200;
 const SUPPORTED_FORMATS = {
   jpg: true,
@@ -19,6 +18,11 @@ const SUPPORTED_FORMATS = {
 export const handler = async (event, context) => {
   const { eventTime, s3 } = event.Records[0];
   const srcBucket = s3.bucket.name;
+
+  const DEST_BUCKET =
+    srcBucket === process.env.DEV_SRC_BUCKET
+      ? process.env.DEV_DEST_BUCKET
+      : process.env.PROD_DEST_BUCKET;
 
   // Remove spaces or unicode non-ASCII characters from object key
   const srcKey = decodeURIComponent(s3.object.key.replace(/\+/g, " "));
