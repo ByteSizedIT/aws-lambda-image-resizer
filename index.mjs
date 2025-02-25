@@ -42,10 +42,32 @@ export const handler = async (event, context) => {
       })
     );
     const image = await Body.transformToByteArray();
-    // Reformat/resize image
+
+    // Get image stats/brightness; set watermark color dynamically
+    const stats = await sharp(image).stats();
+    const avgBrightness =
+      (stats.channels[0].mean +
+        stats.channels[1].mean +
+        stats.channels[2].mean) /
+      3;
+
+    const watermarkColor =
+      avgBrightness < 128 ? "rgba(204,204,204,0.7)" : "rgba(85,85,85,0.7)";
+
+    // Create a watermark text overlay using SVG
+    const watermarkText = "© Leo Keemer";
+    const svgWatermark = `<svg width="200" height="200"><text x="50%" y="50%" font-family="CedarvilleCursive" font-size="24" viewBox="0 0 200 200" text-anchor="middle"  opacity="1"  dominant-baseline="middle" fill="${watermarkColor}" transform="rotate(-45, 100, 100)">${watermarkText}</text></svg>`;
+
+    // Convert svgWatermark to Buffer
+    const watermarkBuffer = Buffer.from(svgWatermark);
+
+    // Reformat/resize image/add watermark
     const outputBuffer = await sharp(image)
       .toFormat("webp")
       .resize(THUMBNAIL_WIDTH)
+      .composite([
+        { input: watermarkBuffer, gravity: "southeast", blend: "over" },
+      ])
       .toBuffer();
 
     // Store new image in destination bucket
